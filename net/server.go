@@ -59,27 +59,3 @@ func Serve(server Server, listener net.Listener, opts ...ServeOption) service.Ru
 		return <-cerr
 	}
 }
-
-// ListenAndServe is a shortcut for NewListener and Serve.
-func ListenAndServe(address string, server Server, opts ...any) service.RunFunc {
-	var (
-		lopts []ListenerOption
-		sopts []ServeOption
-	)
-	for _, opt := range opts {
-		if lopt, ok := opt.(ListenerOption); ok && lopt != nil {
-			lopts = append(lopts, lopt)
-		}
-		if sopt, ok := opt.(ServeOption); ok && sopt != nil {
-			sopts = append(sopts, sopt)
-		}
-	}
-
-	return func(ctx context.Context) error {
-		listener, err := NewListener(ctx, address, lopts...)
-		if err != nil {
-			return err
-		}
-		return Serve(server, listener, sopts...)(ctx)
-	}
-}

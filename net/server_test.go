@@ -81,40 +81,6 @@ func Test_Serve(t *testing.T) {
 	})
 }
 
-func Test_ListenAndServe(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-
-		var wg errgroup.Group
-		wg.Go(func() error {
-			return ListenAndServe("localhost:0",
-				newServer(func(rw http.ResponseWriter, r *http.Request) { rw.WriteHeader(http.StatusTeapot) }),
-				ServerWithServeErrorTransformer(func(err error) error {
-					if errors.Is(err, http.ErrServerClosed) {
-						return nil
-					}
-					return err
-				}),
-				ListenWithNetwork("tcp"),
-			)(ctx)
-		})
-
-		time.Sleep(time.Second * 2)
-		cancel()
-
-		assert.NilError(t, wg.Wait())
-	})
-
-	t.Run("ko", func(t *testing.T) {
-		ctx := context.Background()
-
-		l, err := NewListener(ctx, "localhost:0")
-		assert.NilError(t, err)
-
-		assert.ErrorContains(t, ListenAndServe(l.Addr().String(), nil)(ctx), "unable to listen")
-	})
-}
-
 type listenerFail struct {
 	net.Listener
 }

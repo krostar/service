@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net"
 	"time"
+
+	"github.com/krostar/service"
 )
 
 // NewListener creates a new listener.
@@ -32,4 +34,31 @@ func NewListener(ctx context.Context, address string, opts ...ListenerOption) (n
 	}
 
 	return l, err
+}
+
+// ListenAndServeOption allow underlying option to be of type ListenerOption or ServeOption.
+type ListenAndServeOption any
+
+// ListenAndServe is a shortcut for NewListener and Serve.
+func ListenAndServe(address string, server Server, opts ...ListenAndServeOption) service.RunFunc {
+	var (
+		lopts []ListenerOption
+		sopts []ServeOption
+	)
+	for _, opt := range opts {
+		if lopt, ok := opt.(ListenerOption); ok && lopt != nil {
+			lopts = append(lopts, lopt)
+		}
+		if sopt, ok := opt.(ServeOption); ok && sopt != nil {
+			sopts = append(sopts, sopt)
+		}
+	}
+
+	return func(ctx context.Context) error {
+		listener, err := NewListener(ctx, address, lopts...)
+		if err != nil {
+			return err
+		}
+		return Serve(server, listener, sopts...)(ctx)
+	}
 }
