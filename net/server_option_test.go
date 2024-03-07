@@ -9,8 +9,8 @@ import (
 
 func Test_ServerWithGracefulTimeout(t *testing.T) {
 	var o serveOptions
-	ServerWithGracefulTimeout(time.Second)(&o)
-	assert.Equal(t, o.gracefulTimeout, time.Second)
+	ServerWithShutdownTimeout(time.Second)(&o)
+	assert.Equal(t, o.shutdownTimeout, time.Second)
 }
 
 func Test_ServerWithServeErrorTransformer(t *testing.T) {

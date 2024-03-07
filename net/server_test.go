@@ -22,7 +22,7 @@ func Test_Serve(t *testing.T) {
 
 		var wg errgroup.Group
 		wg.Go(func() error {
-			srv := newServer(func(rw http.ResponseWriter, r *http.Request) {
+			srv := newServer(func(rw http.ResponseWriter, _ *http.Request) {
 				rw.WriteHeader(http.StatusTeapot)
 			})
 			return Serve(srv, l, ServerWithServeErrorTransformer(func(err error) error {
@@ -44,7 +44,7 @@ func Test_Serve(t *testing.T) {
 	t.Run("unable to serve", func(t *testing.T) {
 		ctx := context.Background()
 
-		srv := newServer(func(rw http.ResponseWriter, r *http.Request) {
+		srv := newServer(func(rw http.ResponseWriter, _ *http.Request) {
 			rw.WriteHeader(http.StatusTeapot)
 		})
 
@@ -57,7 +57,7 @@ func Test_Serve(t *testing.T) {
 	t.Run("unable to shutdown", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 
-		srv := newServer(func(rw http.ResponseWriter, r *http.Request) {
+		srv := newServer(func(_ http.ResponseWriter, r *http.Request) {
 			cancel()
 			reqCtx, cancelReqCtx := context.WithTimeout(r.Context(), time.Second*2)
 			defer cancelReqCtx()
@@ -69,7 +69,7 @@ func Test_Serve(t *testing.T) {
 
 		var wg errgroup.Group
 		wg.Go(func() error {
-			err := Serve(srv, l, ServerWithGracefulTimeout(time.Second))(ctx)
+			err := Serve(srv, l, ServerWithShutdownTimeout(time.Second))(ctx)
 			return err
 		})
 		wg.Go(func() error {

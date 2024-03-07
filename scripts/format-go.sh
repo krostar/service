@@ -9,5 +9,6 @@ set -o errexit
 set -o nounset
 set -o xtrace
 
-gci write "$@" --custom-order --section "standard" --section "default" --section "Prefix(github.com/krostar/)" --section "dot"
+goimports -w "$@"
+gci write "$@" --custom-order --section "standard" --section "default" --section "Prefix(github.com/krostar/)"
 gofumpt -extra -w "$@"

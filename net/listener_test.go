@@ -100,7 +100,7 @@ func Test_ListenAndServe(t *testing.T) {
 		var wg errgroup.Group
 		wg.Go(func() error {
 			return ListenAndServe("localhost:0",
-				newServer(func(rw http.ResponseWriter, r *http.Request) { rw.WriteHeader(http.StatusTeapot) }),
+				newServer(func(rw http.ResponseWriter, _ *http.Request) { rw.WriteHeader(http.StatusTeapot) }),
 				ServerWithServeErrorTransformer(func(err error) error {
 					if errors.Is(err, http.ErrServerClosed) {
 						return nil

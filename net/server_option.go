@@ -5,18 +5,18 @@ import (
 )
 
 type serveOptions struct {
-	gracefulTimeout          time.Duration
-	serveErrorTransformer    func(error) error
+	shutdownTimeout          time.Duration
 	shutdownErrorTransformer func(error) error
+	serveErrorTransformer    func(error) error
 }
 
 // ServeOption defines options applier for the server.
 type ServeOption func(*serveOptions)
 
-// ServerWithGracefulTimeout sets the provider timeout for graceful shutdown.
-func ServerWithGracefulTimeout(timeout time.Duration) ServeOption {
+// ServerWithShutdownTimeout sets the provider timeout to shut down.
+func ServerWithShutdownTimeout(timeout time.Duration) ServeOption {
 	return func(o *serveOptions) {
-		o.gracefulTimeout = timeout
+		o.shutdownTimeout = timeout
 	}
 }
 

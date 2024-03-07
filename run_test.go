@@ -16,7 +16,7 @@ func TestMain(m *testing.M) {
 
 func Test_RunFunc(t *testing.T) {
 	called := false
-	assert.NilError(t, RunFunc(func(ctx context.Context) error {
+	assert.NilError(t, RunFunc(func(context.Context) error {
 		called = true
 		return nil
 	}).Run(context.Background()))
@@ -54,7 +54,7 @@ func Test_Run(t *testing.T) {
 				<-ctx.Done()
 				return nil
 			}),
-			RunFunc(func(ctx context.Context) error {
+			RunFunc(func(context.Context) error {
 				return nil
 			}),
 		)
@@ -73,7 +73,7 @@ func Test_Run(t *testing.T) {
 				<-ctx.Done()
 				return nil
 			}),
-			RunFunc(func(ctx context.Context) error {
+			RunFunc(func(context.Context) error {
 				return runErr
 			}),
 		)

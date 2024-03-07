@@ -19,11 +19,10 @@ type Server interface {
 
 // Serve returns a runner that serves the server through the provided listener.
 // On context cancellation, the server tries to gracefully shutdown.
-// Once the graceful timeout is reached the shutdown context is canceled.
 func Serve(server Server, listener net.Listener, opts ...ServeOption) service.RunFunc {
 	return func(ctx context.Context) error {
 		o := serveOptions{
-			gracefulTimeout:          time.Second * 15,
+			shutdownTimeout:          time.Second * 30,
 			serveErrorTransformer:    func(err error) error { return err },
 			shutdownErrorTransformer: func(err error) error { return err },
 		}
@@ -45,9 +44,9 @@ func Serve(server Server, listener net.Listener, opts ...ServeOption) service.Ru
 			return err
 		case <-ctx.Done():
 			shutdownCtx := context.Background()
-			if o.gracefulTimeout > 0 {
+			if o.shutdownTimeout > 0 {
 				var cancel context.CancelFunc
-				shutdownCtx, cancel = context.WithTimeout(context.Background(), o.gracefulTimeout)
+				shutdownCtx, cancel = context.WithTimeout(context.Background(), o.shutdownTimeout)
 				defer cancel()
 			}
 
