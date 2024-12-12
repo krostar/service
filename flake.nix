@@ -1,38 +1,23 @@
 {
   inputs = {
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    harmony = {
+      url = "git+ssh://git@github.com/krostar/harmony";
+      inputs = {
+        synergy.follows = "synergy";
+        nixpkgs-unstable.follows = "nixpkgs";
+      };
+    };
+    synergy = {
+      url = "git+ssh://git@github.com/krostar/synergy";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = {nixpkgs-unstable, ...}: let
-    supportedSystems = ["aarch64-linux" "aarch64-darwin" "x86_64-linux" "x86_64-darwin"];
-    forEachSupportedSystems = f: builtins.listToAttrs (builtins.map (system: (nixpkgs-unstable.lib.nameValuePair system (f system))) supportedSystems);
-    pkgsForSystem = system: {
-      nixpkgs ? nixpkgs-unstable,
-      overlays ? [],
-    }: (import nixpkgs {inherit system overlays;});
-  in {
-    devShells = forEachSupportedSystems (system: let
-      pkgs = pkgsForSystem system {};
-    in {
-      default = pkgs.mkShellNoCC {
-        nativeBuildInputs = with pkgs; [
-          act
-          alejandra
-          deadnix
-          gci
-          git
-          go_1_22
-          gofumpt
-          golangci-lint
-          gotools
-          govulncheck
-          shellcheck
-          shfmt
-          statix
-          yamllint
-        ];
-      };
-    });
-    formatter = forEachSupportedSystems (system: let pkgs = pkgsForSystem system {}; in pkgs.alejandra);
-  };
+  outputs = {synergy, ...} @ inputs:
+    synergy.lib.mkFlake {
+      inherit inputs;
+      src = ./nix;
+      eval.synergy.restrictDependenciesUnits.harmony = ["harmony"];
+    };
 }

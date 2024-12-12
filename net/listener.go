@@ -22,7 +22,13 @@ func NewListener(ctx context.Context, address string, opts ...ListenerOption) (n
 		}
 	}
 
-	lc := net.ListenConfig{KeepAlive: o.keepAlive}
+	lc := net.ListenConfig{
+		KeepAlive: o.keepAlive,
+		KeepAliveConfig: net.KeepAliveConfig{
+			Enable:   o.keepAlive > 0,
+			Interval: o.keepAlive,
+		},
+	}
 
 	l, err := lc.Listen(ctx, o.network, address)
 	if err != nil {

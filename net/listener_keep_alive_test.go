@@ -9,7 +9,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func Test_NewListener_with_keepalive(t *testing.T) {
+func Test_NewListener_keepalive(t *testing.T) {
 	t.Run("without keepalive", func(t *testing.T) {
 		l, err := NewListener(context.Background(), "localhost:0", ListenWithoutKeepAlive())
 		assert.NilError(t, err)

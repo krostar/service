@@ -12,45 +12,45 @@ Golang library that handle the complexity of running long-living goroutines (lik
 func main() {
     ctx := context.Background()
 
-	listener1, err := net.Listen("tcp", ":8080")
-	if err != nil {
-		panic(fmt.Errorf("unable to create listener: %v", err))
-	}
+    listener1, err := net.Listen("tcp", ":8080")
+    if err != nil {
+        panic(fmt.Errorf("unable to create listener: %v", err))
+    }
 
-	server1 := netservice.Serve(
-		&http.Server{Handler: http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-			rw.WriteHeader(http.StatusTeapot)
-		})},
-		listener1,
-		netservice.ServerWithServeErrorTransformer(func(err error) error {
-			if errors.Is(err, http.ErrServerClosed) {
-				return nil
-			}
-			return err
-		}),
-	)
+    server1 := netservice.Serve(
+        &http.Server{Handler: http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+            rw.WriteHeader(http.StatusTeapot)
+        })},
+        listener1,
+        netservice.ServerWithServeErrorTransformer(func(err error) error {
+            if errors.Is(err, http.ErrServerClosed) {
+                return nil
+            }
+            return err
+        }),
+    )
 
-	listener2, err := netservice.NewListener(ctx, ":9090")
-	if err != nil {
-		panic(fmt.Errorf("unable to create listener: %v", err))
-	}
+    listener2, err := netservice.NewListener(ctx, ":9090")
+    if err != nil {
+        panic(fmt.Errorf("unable to create listener: %v", err))
+    }
 
-	server2 := netservice.Serve(
-		&http.Server{Handler: http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-			rw.WriteHeader(http.StatusOK)
-		})},
-		listener2,
-		netservice.ServerWithServeErrorTransformer(func(err error) error {
-			if errors.Is(err, http.ErrServerClosed) {
-				return nil
-			}
-			return err
-		}),
-	)
+    server2 := netservice.Serve(
+        &http.Server{Handler: http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+            rw.WriteHeader(http.StatusOK)
+        })},
+        listener2,
+        netservice.ServerWithServeErrorTransformer(func(err error) error {
+            if errors.Is(err, http.ErrServerClosed) {
+                return nil
+            }
+            return err
+        }),
+    )
 
-	if err := service.Run(ctx, server1, server2); err != nil {
-		panic(fmt.Errorf("unable to run services: %v", err))
-	}
+    if err := service.Run(ctx, server1, server2); err != nil {
+        panic(fmt.Errorf("unable to run services: %v", err))
+    }
 }
 ```
 

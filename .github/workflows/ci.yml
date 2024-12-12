@@ -2,35 +2,73 @@
 
 name: "CI"
 on:
-  workflow_dispatch: {}
   push:
     branches: ["main"]
   pull_request:
     branches: ["main"]
-
 jobs:
-  tests:
+  check-quality:
     runs-on: "ubuntu-latest"
     steps:
-      - uses: "cachix/install-nix-action@v25"
+      # setup
+      - uses: "webfactory/ssh-agent@v0.9.0"
         with:
-          nix_path: "nixpkgs=channel:nixos-unstable"
+          ssh-private-key: "${{ secrets.SSH_PRIVATE_KEY }}"
       - uses: "actions/checkout@v4"
-      - name: "Print installed nixpkgs version"
-        run: "nix-instantiate --eval -E '(import <nixpkgs> {}).lib.version'"
+      - uses: "DeterminateSystems/nix-installer-action@v16"
+        with:
+          diagnostic-endpoint: ""
+      - uses: "DeterminateSystems/magic-nix-cache-action@v8"
+        with:
+          diagnostic-endpoint: ""
       - name: "Print flake metadata"
         run: "nix flake metadata"
+      - uses: "DeterminateSystems/flake-checker-action@v9"
+        with:
+          fail-mode: true
+          ignore-missing-flake-lock: false
+          nixpkgs-keys: "nixpkgs"
+          send-statistics: false
       - name: "Setup shell"
         run: "nix develop --command true"
-      - name: "Lint nix files"
-        run: "nix develop --command ./scripts/lint-nix.sh"
-      - name: "Lint shell files"
-        run: "nix develop --command shellcheck **/*.sh"
-      - name: "Lint yaml files"
-        run: "nix develop --command yamllint --config-file .yamllint.yml ."
-      - name: "Lint go files"
-        run: "nix develop --command ./scripts/lint-go.sh"
+
+      # tests
+      - name: "Flake check"
+        run: "nix flake check --all-systems --print-build-logs"
+
+      - name: "Files respect Editorconfig configuration"
+        run: "nix develop --command editorconfig-checker"
+
+      - name: "Files respect treefmt format"
+        run: |
+          # we need to explicitly add all formatters except cue
+          # this is due to cue re-generating files, which would cause --fail-on-change to fail.
+          nix develop --command           \
+            treefmt                       \
+              --no-cache --fail-on-change \
+              --formatters alejandra      \
+              --formatters gci            \
+              --formatters gofumpt        \
+              --formatters goimports      \
+              --formatters jsonfmt        \
+              --formatters mdsh           \
+              --formatters shfmt          \
+              --formatters yamlfmt
+
       - name: "Run go unit tests"
         run: "nix develop --command go test -v -race -count=1 ./..."
 
-...
+      - name: "Lint Github Actions"
+        run: "nix develop --command lint-ghaction"
+
+      - name: "Lint Shell scripts"
+        run: "nix develop --command lint-sh"
+
+      - name: "Lint Yaml configurations files"
+        run: "nix develop --command lint-yaml"
+
+      - name: "Lint Go code"
+        run: "nix develop --command lint-go"
+
+      - name: "Lint Nix code"
+        run: "nix develop --command lint-nix"
