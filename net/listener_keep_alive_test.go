@@ -1,7 +1,6 @@
 package netservice
 
 import (
-	"context"
 	"net"
 	"testing"
 	"time"
@@ -11,7 +10,7 @@ import (
 
 func Test_NewListener_keepalive(t *testing.T) {
 	t.Run("without keepalive", func(t *testing.T) {
-		l, err := NewListener(context.Background(), "localhost:0", ListenWithoutKeepAlive())
+		l, err := NewListener(ListenWithAddress("tcp", "localhost:0"), ListenWithoutKeepAlive())
 		assert.NilError(t, err)
 
 		activated, _ := tcpGetKeepAliveSockOPT(t, l)
@@ -21,7 +20,7 @@ func Test_NewListener_keepalive(t *testing.T) {
 	})
 
 	t.Run("with keepalive", func(t *testing.T) {
-		l, err := NewListener(context.Background(), "localhost:0", ListenWithKeepAlive(17*time.Second))
+		l, err := NewListener(ListenWithAddress("tcp", "localhost:0"), ListenWithKeepAlive(17*time.Second))
 		assert.NilError(t, err)
 
 		activated, period := tcpGetKeepAliveSockOPT(t, l)

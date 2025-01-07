@@ -13,10 +13,12 @@ import (
 )
 
 func Test_Serve(t *testing.T) {
+	client := &http.Client{Timeout: time.Millisecond * 500}
+
 	t.Run("ok", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 
-		l, err := NewListener(ctx, "localhost:0")
+		l, err := NewListener(ListenWithAddress("tcp", "localhost:0"))
 		assert.NilError(t, err)
 		addr := l.Addr().String()
 
@@ -33,7 +35,7 @@ func Test_Serve(t *testing.T) {
 			}))(ctx)
 		})
 
-		resp, err := http.DefaultClient.Get("http://" + addr)
+		resp, err := client.Get("http://" + addr)
 		assert.NilError(t, err)
 		assert.Equal(t, resp.StatusCode, http.StatusTeapot)
 
@@ -48,7 +50,7 @@ func Test_Serve(t *testing.T) {
 			rw.WriteHeader(http.StatusTeapot)
 		})
 
-		l, err := NewListener(ctx, "localhost:0")
+		l, err := NewListener(ListenWithAddress("tcp", "localhost:0"))
 		assert.NilError(t, err)
 
 		assert.ErrorContains(t, Serve(srv, listenerFail{Listener: l})(ctx), "unable to serve listener")
@@ -59,25 +61,27 @@ func Test_Serve(t *testing.T) {
 
 		srv := newServer(func(_ http.ResponseWriter, r *http.Request) {
 			cancel()
-			reqCtx, cancelReqCtx := context.WithTimeout(r.Context(), time.Second*2)
+			reqCtx, cancelReqCtx := context.WithTimeout(r.Context(), time.Minute)
 			defer cancelReqCtx()
 			<-reqCtx.Done()
 		})
 
-		l, err := NewListener(context.Background(), "localhost:0")
+		l, err := NewListener(ListenWithAddress("tcp", "localhost:0"))
 		assert.NilError(t, err)
 
-		var wg errgroup.Group
-		wg.Go(func() error {
-			err := Serve(srv, l, ServerWithShutdownTimeout(time.Second))(ctx)
-			return err
-		})
-		wg.Go(func() error {
-			_, err := http.DefaultClient.Get("http://" + l.Addr().String())
-			return err
-		})
+		serverErr := make(chan error)
+		go func() {
+			serverErr <- Serve(srv, l, ServerWithShutdownTimeout(time.Millisecond*100))(ctx)
+		}()
 
-		assert.ErrorContains(t, wg.Wait(), "unable to shut server down")
+		reqErr := make(chan error)
+		go func() {
+			_, err := client.Get("http://" + l.Addr().String())
+			reqErr <- err
+		}()
+
+		assert.Check(t, errors.Is(<-reqErr, context.DeadlineExceeded))
+		assert.ErrorContains(t, <-serverErr, "unable to shut server down")
 	})
 }
 

@@ -1,6 +1,7 @@
 package netservice
 
 import (
+	"context"
 	"crypto/tls"
 	"testing"
 	"time"
@@ -8,11 +9,34 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func Test_ListenWithNetwork(t *testing.T) {
+func Test_ListenWithContext(t *testing.T) {
 	var o listenerOptions
-	err := ListenWithNetwork("net")(&o)
+	err := ListenWithContext(context.Background())(&o)
+	assert.NilError(t, err)
+	assert.Check(t, o.ctx != nil)
+}
+
+func Test_ListenWithAddress(t *testing.T) {
+	var o listenerOptions
+	err := ListenWithAddress("net", "addr")(&o)
 	assert.NilError(t, err)
 	assert.Equal(t, "net", o.network)
+	assert.Equal(t, "addr", o.address)
+}
+
+func Test_ListenWithKeepAlive(t *testing.T) {
+	var o listenerOptions
+	err := ListenWithKeepAlive(3 * time.Millisecond)(&o)
+	assert.NilError(t, err)
+	assert.Equal(t, 3*time.Millisecond, o.keepAlive)
+}
+
+func Test_ListenWithoutKeepAlive(t *testing.T) {
+	var o listenerOptions
+	o.keepAlive = 10 * time.Second
+	err := ListenWithoutKeepAlive()(&o)
+	assert.NilError(t, err)
+	assert.Equal(t, time.Duration(-1), o.keepAlive)
 }
 
 func Test_ListenWithModernTLSConfig(t *testing.T) {
@@ -46,17 +70,9 @@ func Test_ListenWithTLSConfig(t *testing.T) {
 	assert.Check(t, o.tlsConfig.ServerName == "meee")
 }
 
-func Test_ListenWithKeepAlive(t *testing.T) {
+func Test_ListenWithSystemdProvidedFileDescriptors(t *testing.T) {
 	var o listenerOptions
-	err := ListenWithKeepAlive(3 * time.Millisecond)(&o)
+	err := ListenWithSystemdProvidedFileDescriptors()(&o)
 	assert.NilError(t, err)
-	assert.Equal(t, 3*time.Millisecond, o.keepAlive)
-}
-
-func Test_ListenWithoutKeepAlive(t *testing.T) {
-	var o listenerOptions
-	o.keepAlive = 10 * time.Second
-	err := ListenWithoutKeepAlive()(&o)
-	assert.NilError(t, err)
-	assert.Equal(t, time.Duration(-1), o.keepAlive)
+	assert.Check(t, o.useSystemdProvidedFileDescriptor)
 }

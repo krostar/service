@@ -1,24 +1,55 @@
 package netservice
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"time"
 )
 
 type listenerOptions struct {
-	network   string
+	ctx context.Context //nolint:containedctx // ctx here is used for the Listen function and provided as an option
+
+	network string
+	address string
+
 	keepAlive time.Duration
 	tlsConfig *tls.Config
+
+	useSystemdProvidedFileDescriptor bool
 }
 
 // ListenerOption defines options applier for the listener.
 type ListenerOption func(*listenerOptions) error
 
-// ListenWithNetwork sets the network parameter for net.Listen().
-func ListenWithNetwork(network string) ListenerOption {
+// ListenWithContext sets the context provided to net.Listen().
+func ListenWithContext(ctx context.Context) ListenerOption {
 	return func(o *listenerOptions) error {
-		o.network = network
+		o.ctx = ctx //nolint:fatcontext // we want to provide that context as an option to Listen
+		return nil
+	}
+}
+
+// ListenWithAddress sets the address provided to net.Listen().
+func ListenWithAddress(network, address string) ListenerOption {
+	return func(o *listenerOptions) error {
+		o.network, o.address = network, address
+		return nil
+	}
+}
+
+// ListenWithKeepAlive sets keepalive period.
+func ListenWithKeepAlive(keepAlive time.Duration) ListenerOption {
+	return func(o *listenerOptions) error {
+		o.keepAlive = keepAlive
+		return nil
+	}
+}
+
+// ListenWithoutKeepAlive disables the keepalive on the listener.
+func ListenWithoutKeepAlive() ListenerOption {
+	return func(o *listenerOptions) error {
+		o.keepAlive = -1
 		return nil
 	}
 }
@@ -85,18 +116,10 @@ func ListenWithTLSConfig(cfg *tls.Config) ListenerOption {
 	}
 }
 
-// ListenWithKeepAlive sets keepalive period.
-func ListenWithKeepAlive(keepAlive time.Duration) ListenerOption {
+// ListenWithSystemdProvidedFileDescriptors tries to use systemd provided fds if they are provided.
+func ListenWithSystemdProvidedFileDescriptors() ListenerOption {
 	return func(o *listenerOptions) error {
-		o.keepAlive = keepAlive
-		return nil
-	}
-}
-
-// ListenWithoutKeepAlive disables the keepalive on the listener.
-func ListenWithoutKeepAlive() ListenerOption {
-	return func(o *listenerOptions) error {
-		o.keepAlive = -1
+		o.useSystemdProvidedFileDescriptor = true
 		return nil
 	}
 }

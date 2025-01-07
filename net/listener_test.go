@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -17,11 +18,17 @@ import (
 )
 
 func Test_NewListener(t *testing.T) {
+	t.Run("no configuration", func(t *testing.T) {
+		l, err := NewListener()
+		assert.ErrorContains(t, err, "no listener configured")
+		assert.Check(t, l == nil)
+	})
+
 	t.Run("no tls", func(t *testing.T) {
 		var l net.Listener
 		{
 			var err error
-			l, err = NewListener(context.Background(), "localhost:0")
+			l, err = NewListener(ListenWithAddress("tcp", "localhost:0"), ListenWithSystemdProvidedFileDescriptors())
 			assert.NilError(t, err)
 		}
 
@@ -48,7 +55,7 @@ func Test_NewListener(t *testing.T) {
 		var l net.Listener
 		{
 			var err error
-			l, err = NewListener(context.Background(), "localhost:0", ListenWithIntermediateTLSConfig("./testdata/cert.crt", "./testdata/cert.key"))
+			l, err = NewListener(ListenWithAddress("tcp", "localhost:0"), ListenWithIntermediateTLSConfig("./testdata/cert.crt", "./testdata/cert.key"))
 			assert.NilError(t, err)
 		}
 
@@ -79,15 +86,45 @@ func Test_NewListener(t *testing.T) {
 		assert.NilError(t, l.Close())
 	})
 
+	t.Run("with systemd sockets enabled and provided", func(t *testing.T) {
+		emulateSystemdProvidingFileDescriptors(t, 2, false)
+		setupSystemdEnv(t, func(t *testing.T) {
+			t.Setenv(_systemdSocketActivationEnvExpectedProgramIDKey, strconv.Itoa(os.Getpid()))
+			t.Setenv(_systemdSocketActivationEnvNumberOfFileDescriptorsKey, "2")
+		})
+		listener, err := NewListener(ListenWithAddress("tcp", "localhost:0"), ListenWithSystemdProvidedFileDescriptors())
+		assert.Check(t, err)
+		assert.Check(t, listener.Addr().Network() == "unix")
+		assert.Check(t, listener.Close())
+	})
+
+	t.Run("with systemd sockets enabled but not provided", func(t *testing.T) {
+		listener, err := NewListener(ListenWithAddress("tcp", "localhost:0"), ListenWithSystemdProvidedFileDescriptors())
+		assert.Check(t, err)
+		assert.Check(t, listener.Addr().Network() == "tcp")
+		assert.Check(t, listener.Close())
+	})
+
+	t.Run("with systemd sockets enabled and wrongly provided", func(t *testing.T) {
+		emulateSystemdProvidingFileDescriptors(t, 2, false)
+		setupSystemdEnv(t, func(t *testing.T) {
+			t.Setenv(_systemdSocketActivationEnvExpectedProgramIDKey, strconv.Itoa(os.Getpid()+1))
+			t.Setenv(_systemdSocketActivationEnvNumberOfFileDescriptorsKey, "2")
+		})
+		listener, err := NewListener(ListenWithAddress("tcp", "localhost:0"), ListenWithSystemdProvidedFileDescriptors())
+		assert.ErrorContains(t, err, "unable to retrieve systemd listeners")
+		assert.Check(t, listener == nil)
+	})
+
 	t.Run("bad option", func(t *testing.T) {
-		_, err := NewListener(context.Background(), "localhost:0", ListenWithIntermediateTLSConfig("dont/exist", "./testdata/cert.key"))
+		_, err := NewListener(ListenWithAddress("tcp", "localhost:0"), ListenWithIntermediateTLSConfig("dont/exist", "./testdata/cert.key"))
 		assert.ErrorContains(t, err, "unable to apply option")
 	})
 
 	t.Run("unable to listen", func(t *testing.T) {
-		l, err := NewListener(context.Background(), "localhost:0")
+		l, err := NewListener(ListenWithAddress("tcp", "localhost:0"))
 		assert.NilError(t, err)
-		_, err = NewListener(context.Background(), l.Addr().String())
+		_, err = NewListener(ListenWithAddress(l.Addr().Network(), l.Addr().String()))
 		assert.ErrorContains(t, err, "unable to listen")
 		assert.NilError(t, l.Close())
 	})
@@ -99,19 +136,19 @@ func Test_ListenAndServe(t *testing.T) {
 
 		var wg errgroup.Group
 		wg.Go(func() error {
-			return ListenAndServe("localhost:0",
+			return ListenAndServe(
 				newServer(func(rw http.ResponseWriter, _ *http.Request) { rw.WriteHeader(http.StatusTeapot) }),
+				ListenWithAddress("tcp", "localhost:0"),
 				ServerWithServeErrorTransformer(func(err error) error {
 					if errors.Is(err, http.ErrServerClosed) {
 						return nil
 					}
 					return err
 				}),
-				ListenWithNetwork("tcp"),
 			)(ctx)
 		})
 
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Millisecond * 100)
 		cancel()
 
 		assert.NilError(t, wg.Wait())
@@ -120,9 +157,10 @@ func Test_ListenAndServe(t *testing.T) {
 	t.Run("ko", func(t *testing.T) {
 		ctx := context.Background()
 
-		l, err := NewListener(ctx, "localhost:0")
+		l, err := NewListener(ListenWithAddress("tcp", "localhost:0"))
 		assert.NilError(t, err)
 
-		assert.ErrorContains(t, ListenAndServe(l.Addr().String(), nil)(ctx), "unable to listen")
+		assert.ErrorContains(t, ListenAndServe(nil, ListenWithAddress(l.Addr().Network(), l.Addr().String()))(ctx), "unable to listen")
+		assert.NilError(t, l.Close())
 	})
 }

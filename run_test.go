@@ -27,7 +27,7 @@ func Test_Run(t *testing.T) {
 	t.Run("runner ok", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		go func() {
-			time.Sleep(time.Second)
+			time.Sleep(time.Millisecond * 100)
 			cancel()
 		}()
 
@@ -85,7 +85,7 @@ func Test_Run(t *testing.T) {
 	t.Run("one runner failing after stop", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		go func() {
-			time.Sleep(time.Second)
+			time.Sleep(time.Millisecond * 100)
 			cancel()
 		}()
 
@@ -108,7 +108,7 @@ func Test_Run(t *testing.T) {
 	t.Run("multiple runner failing after stop", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		go func() {
-			time.Sleep(time.Second)
+			time.Sleep(time.Millisecond * 100)
 			cancel()
 		}()
 

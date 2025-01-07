@@ -32,6 +32,7 @@ func Serve(server Server, listener net.Listener, opts ...ServeOption) service.Ru
 
 		cerr := make(chan error)
 		go func() {
+			defer listener.Close() //nolint:errcheck // listener probably will complain, we don't care
 			if err := server.Serve(listener); err != nil {
 				cerr <- o.serveErrorTransformer(fmt.Errorf("unable to serve listener: %w", err))
 				return
@@ -40,8 +41,8 @@ func Serve(server Server, listener net.Listener, opts ...ServeOption) service.Ru
 		}()
 
 		select {
-		case err := <-cerr:
-			return err
+		case err := <-cerr: // server exit without asking, even if err is nil it should be considered an error
+			return fmt.Errorf("server stopped serving abruptly: %w", err)
 		case <-ctx.Done():
 			shutdownCtx := context.Background()
 			if o.shutdownTimeout > 0 {
