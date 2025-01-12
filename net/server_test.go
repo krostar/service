@@ -27,7 +27,7 @@ func Test_Serve(t *testing.T) {
 			srv := newServer(func(rw http.ResponseWriter, _ *http.Request) {
 				rw.WriteHeader(http.StatusTeapot)
 			})
-			return Serve(srv, l, ServerWithServeErrorTransformer(func(err error) error {
+			return Serve(srv, l, ServeWithServeErrorTransformer(func(err error) error {
 				if errors.Is(err, http.ErrServerClosed) {
 					return nil
 				}
@@ -71,7 +71,7 @@ func Test_Serve(t *testing.T) {
 
 		serverErr := make(chan error)
 		go func() {
-			serverErr <- Serve(srv, l, ServerWithShutdownTimeout(time.Millisecond*100))(ctx)
+			serverErr <- Serve(srv, l, ServeWithShutdownTimeout(time.Millisecond*100))(ctx)
 		}()
 
 		reqErr := make(chan error)

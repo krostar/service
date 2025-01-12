@@ -13,22 +13,22 @@ type serveOptions struct {
 // ServeOption defines options applier for the server.
 type ServeOption func(*serveOptions)
 
-// ServerWithShutdownTimeout sets the provider timeout to shut down.
-func ServerWithShutdownTimeout(timeout time.Duration) ServeOption {
+// ServeWithShutdownTimeout sets the provider timeout to shut down.
+func ServeWithShutdownTimeout(timeout time.Duration) ServeOption {
 	return func(o *serveOptions) {
 		o.shutdownTimeout = timeout
 	}
 }
 
-// ServerWithServeErrorTransformer sets a function to transform serve errors.
-func ServerWithServeErrorTransformer(f func(error) error) ServeOption {
+// ServeWithServeErrorTransformer sets a function to transform serve errors.
+func ServeWithServeErrorTransformer(f func(error) error) ServeOption {
 	return func(o *serveOptions) {
 		o.serveErrorTransformer = f
 	}
 }
 
-// ServerWithShutdownErrorTransformer sets a function to transform shutdown errors.
-func ServerWithShutdownErrorTransformer(f func(error) error) ServeOption {
+// ServeWithShutdownErrorTransformer sets a function to transform shutdown errors.
+func ServeWithShutdownErrorTransformer(f func(error) error) ServeOption {
 	return func(o *serveOptions) {
 		o.shutdownErrorTransformer = f
 	}

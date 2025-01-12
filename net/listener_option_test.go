@@ -10,14 +10,14 @@ import (
 )
 
 func Test_ListenWithContext(t *testing.T) {
-	var o listenerOptions
+	var o listenOptions
 	err := ListenWithContext(context.Background())(&o)
 	assert.NilError(t, err)
 	assert.Check(t, o.ctx != nil)
 }
 
 func Test_ListenWithAddress(t *testing.T) {
-	var o listenerOptions
+	var o listenOptions
 	err := ListenWithAddress("net", "addr")(&o)
 	assert.NilError(t, err)
 	assert.Equal(t, "net", o.network)
@@ -25,14 +25,14 @@ func Test_ListenWithAddress(t *testing.T) {
 }
 
 func Test_ListenWithKeepAlive(t *testing.T) {
-	var o listenerOptions
+	var o listenOptions
 	err := ListenWithKeepAlive(3 * time.Millisecond)(&o)
 	assert.NilError(t, err)
 	assert.Equal(t, 3*time.Millisecond, o.keepAlive)
 }
 
 func Test_ListenWithoutKeepAlive(t *testing.T) {
-	var o listenerOptions
+	var o listenOptions
 	o.keepAlive = 10 * time.Second
 	err := ListenWithoutKeepAlive()(&o)
 	assert.NilError(t, err)
@@ -40,7 +40,7 @@ func Test_ListenWithoutKeepAlive(t *testing.T) {
 }
 
 func Test_ListenWithModernTLSConfig(t *testing.T) {
-	var o listenerOptions
+	var o listenOptions
 	assert.NilError(t, ListenWithModernTLSConfig("./testdata/cert.crt", "./testdata/cert.key", func(cfg *tls.Config) {
 		cfg.ServerName = "foo"
 	})(&o))
@@ -52,7 +52,7 @@ func Test_ListenWithModernTLSConfig(t *testing.T) {
 }
 
 func Test_ListenWithIntermediateTLSConfig(t *testing.T) {
-	var o listenerOptions
+	var o listenOptions
 	assert.NilError(t, ListenWithIntermediateTLSConfig("./testdata/cert.crt", "./testdata/cert.key", func(cfg *tls.Config) {
 		cfg.ServerName = "foo"
 	})(&o))
@@ -64,14 +64,14 @@ func Test_ListenWithIntermediateTLSConfig(t *testing.T) {
 }
 
 func Test_ListenWithTLSConfig(t *testing.T) {
-	var o listenerOptions
+	var o listenOptions
 	assert.NilError(t, ListenWithTLSConfig(&tls.Config{ServerName: "meee", MinVersion: tls.VersionTLS12})(&o))
 	assert.Check(t, o.tlsConfig != nil, "tls config should not be nil")
 	assert.Check(t, o.tlsConfig.ServerName == "meee")
 }
 
 func Test_ListenWithSystemdProvidedFileDescriptors(t *testing.T) {
-	var o listenerOptions
+	var o listenOptions
 	err := ListenWithSystemdProvidedFileDescriptors()(&o)
 	assert.NilError(t, err)
 	assert.Check(t, o.useSystemdProvidedFileDescriptor)

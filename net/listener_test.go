@@ -139,7 +139,7 @@ func Test_ListenAndServe(t *testing.T) {
 			return ListenAndServe(
 				newServer(func(rw http.ResponseWriter, _ *http.Request) { rw.WriteHeader(http.StatusTeapot) }),
 				ListenWithAddress("tcp", "localhost:0"),
-				ServerWithServeErrorTransformer(func(err error) error {
+				ServeWithServeErrorTransformer(func(err error) error {
 					if errors.Is(err, http.ErrServerClosed) {
 						return nil
 					}

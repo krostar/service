@@ -13,8 +13,8 @@ import (
 )
 
 // NewListener creates a new listener.
-func NewListener(opts ...ListenerOption) (net.Listener, error) {
-	o := listenerOptions{
+func NewListener(opts ...ListenOption) (net.Listener, error) {
+	o := listenOptions{
 		ctx:       context.Background(),
 		keepAlive: time.Minute,
 	}
@@ -68,21 +68,23 @@ func NewListener(opts ...ListenerOption) (net.Listener, error) {
 	return listener, nil
 }
 
-// ListenAndServeOption allow underlying option to be of type ListenerOption or ServeOption.
+// ListenAndServeOption allow underlying option to be of type ListenOption or ServeOption.
 type ListenAndServeOption any
 
 // ListenAndServe is a shortcut for NewListener and Serve.
 func ListenAndServe(server Server, opts ...ListenAndServeOption) service.RunFunc {
 	var (
-		lopts []ListenerOption
+		lopts []ListenOption
 		sopts []ServeOption
 	)
 	for _, opt := range opts {
-		if lopt, ok := opt.(ListenerOption); ok && lopt != nil {
-			lopts = append(lopts, lopt)
-		}
-		if sopt, ok := opt.(ServeOption); ok && sopt != nil {
-			sopts = append(sopts, sopt)
+		switch o := opt.(type) {
+		case ListenOption:
+			lopts = append(lopts, o)
+		case ServeOption:
+			sopts = append(sopts, o)
+		default:
+			panic(fmt.Sprintf("unknown option type %T", opt))
 		}
 	}
 
