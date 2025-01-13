@@ -40,34 +40,42 @@ func Test_ListenWithoutKeepAlive(t *testing.T) {
 }
 
 func Test_ListenWithModernTLSConfig(t *testing.T) {
-	var o listenOptions
-	assert.NilError(t, ListenWithModernTLSConfig("./testdata/cert.crt", "./testdata/cert.key", func(cfg *tls.Config) {
-		cfg.ServerName = "foo"
-	})(&o))
-	assert.Check(t, o.tlsConfig != nil, "tls config should not be nil")
-	assert.Check(t, len(o.tlsConfig.Certificates) != 0, "tls config should contain certificates")
-	assert.Check(t, o.tlsConfig.ServerName == "foo", "tls server name should be foo")
-	assert.Check(t, o.tlsConfig.MinVersion == tls.VersionTLS13, "tls config min version should be 1.2")
-	assert.ErrorContains(t, ListenWithModernTLSConfig("./dont/exists", "./testdata/cert.key")(&o), "unable to load tls key pair")
+	t.Run("ok", func(t *testing.T) {
+		var o listenOptions
+		assert.NilError(t, ListenWithModernTLSConfig("./tls/testdata/cert.crt", "./tls/testdata/cert.key", func(cfg *tls.Config) {
+			cfg.ServerName = "foo"
+		})(&o))
+		assert.Check(t, o.tlsConfig != nil)
+		assert.Check(t, o.tlsConfig.MinVersion == tls.VersionTLS13)
+	})
+
+	t.Run("ko", func(t *testing.T) {
+		var o listenOptions
+		assert.ErrorContains(t, ListenWithModernTLSConfig("./notfound", "./notfound")(&o), "unable to create modern tls config")
+	})
 }
 
 func Test_ListenWithIntermediateTLSConfig(t *testing.T) {
-	var o listenOptions
-	assert.NilError(t, ListenWithIntermediateTLSConfig("./testdata/cert.crt", "./testdata/cert.key", func(cfg *tls.Config) {
-		cfg.ServerName = "foo"
-	})(&o))
-	assert.Check(t, o.tlsConfig != nil, "tls config should not be nil")
-	assert.Check(t, len(o.tlsConfig.Certificates) != 0, "tls config should contain certificates")
-	assert.Check(t, o.tlsConfig.ServerName == "foo", "tls server name should be foo")
-	assert.Check(t, o.tlsConfig.MinVersion == tls.VersionTLS12, "tls config min version should be 1.2")
-	assert.ErrorContains(t, ListenWithIntermediateTLSConfig("./dont/exists", "./testdata/cert.key")(&o), "unable to load tls key pair")
+	t.Run("ok", func(t *testing.T) {
+		var o listenOptions
+		assert.NilError(t, ListenWithIntermediateTLSConfig("./tls/testdata/cert.crt", "./tls/testdata/cert.key", func(cfg *tls.Config) {
+			cfg.ServerName = "foo"
+		})(&o))
+		assert.Check(t, o.tlsConfig != nil)
+		assert.Check(t, o.tlsConfig.MinVersion == tls.VersionTLS12)
+	})
+
+	t.Run("ko", func(t *testing.T) {
+		var o listenOptions
+		assert.ErrorContains(t, ListenWithIntermediateTLSConfig("./notfound", "./notfound")(&o), "unable to create intermediate tls config")
+	})
 }
 
 func Test_ListenWithTLSConfig(t *testing.T) {
 	var o listenOptions
-	assert.NilError(t, ListenWithTLSConfig(&tls.Config{ServerName: "meee", MinVersion: tls.VersionTLS12})(&o))
+	assert.NilError(t, ListenWithTLSConfig(&tls.Config{ServerName: "foo", MinVersion: tls.VersionTLS12})(&o))
 	assert.Check(t, o.tlsConfig != nil, "tls config should not be nil")
-	assert.Check(t, o.tlsConfig.ServerName == "meee")
+	assert.Check(t, o.tlsConfig.ServerName == "foo")
 }
 
 func Test_ListenWithSystemdProvidedFileDescriptors(t *testing.T) {

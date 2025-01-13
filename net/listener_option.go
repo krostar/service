@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"fmt"
 	"time"
+
+	tlsnetservice "github.com/krostar/service/net/tls"
 )
 
 type listenOptions struct {
@@ -58,22 +60,11 @@ func ListenWithoutKeepAlive() ListenOption {
 // "Modern" is defined based on this website: https://wiki.mozilla.org/Security/Server_Side_TLS.
 func ListenWithModernTLSConfig(certFile, keyFile string, customizeFunc ...func(*tls.Config)) ListenOption {
 	return func(o *listenOptions) error {
-		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		cfg, err := tlsnetservice.ModernConfig(certFile, keyFile, customizeFunc...)
 		if err != nil {
-			return fmt.Errorf("unable to load tls key pair: %w", err)
+			return fmt.Errorf("unable to create modern tls config: %w", err)
 		}
-
-		tlsConfig := &tls.Config{
-			Certificates:     []tls.Certificate{cert},
-			MinVersion:       tls.VersionTLS13,
-			CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256, tls.CurveP384},
-		}
-
-		for _, f := range customizeFunc {
-			f(tlsConfig)
-		}
-
-		return ListenWithTLSConfig(tlsConfig)(o)
+		return ListenWithTLSConfig(cfg)(o)
 	}
 }
 
@@ -81,30 +72,11 @@ func ListenWithModernTLSConfig(certFile, keyFile string, customizeFunc ...func(*
 // "Intermediate" is defined based on this website: https://wiki.mozilla.org/Security/Server_Side_TLS.
 func ListenWithIntermediateTLSConfig(certFile, keyFile string, customizeFunc ...func(*tls.Config)) ListenOption {
 	return func(o *listenOptions) error {
-		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		cfg, err := tlsnetservice.IntermediateConfig(certFile, keyFile, customizeFunc...)
 		if err != nil {
-			return fmt.Errorf("unable to load tls key pair: %w", err)
+			return fmt.Errorf("unable to create intermediate tls config: %w", err)
 		}
-
-		tlsConfig := &tls.Config{
-			Certificates: []tls.Certificate{cert},
-			CipherSuites: []uint16{
-				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-				tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-				tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
-				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-				tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
-			},
-			MinVersion:       tls.VersionTLS12,
-			CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256, tls.CurveP384},
-		}
-
-		for _, f := range customizeFunc {
-			f(tlsConfig)
-		}
-
-		return ListenWithTLSConfig(tlsConfig)(o)
+		return ListenWithTLSConfig(cfg)(o)
 	}
 }
 

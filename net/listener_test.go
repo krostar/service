@@ -55,12 +55,12 @@ func Test_NewListener(t *testing.T) {
 		var l net.Listener
 		{
 			var err error
-			l, err = NewListener(ListenWithAddress("tcp", "localhost:0"), ListenWithIntermediateTLSConfig("./testdata/cert.crt", "./testdata/cert.key"))
+			l, err = NewListener(ListenWithAddress("tcp", "localhost:0"), ListenWithIntermediateTLSConfig("./tls/testdata/cert.crt", "./tls/testdata/cert.key"))
 			assert.NilError(t, err)
 		}
 
 		go func() {
-			rootCAPEM, err := os.ReadFile("./testdata/ca.crt")
+			rootCAPEM, err := os.ReadFile("./tls/testdata/ca.crt")
 			assert.NilError(t, err)
 			rootCAs := x509.NewCertPool()
 			assert.Check(t, rootCAs.AppendCertsFromPEM(rootCAPEM))
@@ -117,7 +117,7 @@ func Test_NewListener(t *testing.T) {
 	})
 
 	t.Run("bad option", func(t *testing.T) {
-		_, err := NewListener(ListenWithAddress("tcp", "localhost:0"), ListenWithIntermediateTLSConfig("dont/exist", "./testdata/cert.key"))
+		_, err := NewListener(ListenWithAddress("tcp", "localhost:0"), ListenWithIntermediateTLSConfig("dont/exist", "./tls/testdata/cert.key"))
 		assert.ErrorContains(t, err, "unable to apply option")
 	})
 
