@@ -6,19 +6,21 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
-	"gotest.tools/v3/assert"
+	"github.com/krostar/test"
 )
 
+//nolint:usetesting // we can't use t.SetEnv because we want to basically unset env, and restore it after test
 func setupSystemdEnv(t *testing.T, configure func(t *testing.T)) {
 	a, fa := os.LookupEnv(_systemdSocketActivationEnvNumberOfFileDescriptorsKey)
 	b, fb := os.LookupEnv(_systemdSocketActivationEnvExpectedProgramIDKey)
 	c, fc := os.LookupEnv(_systemdSocketActivationEnvListenFDNamesKey)
-	assert.Check(t, os.Unsetenv(_systemdSocketActivationEnvNumberOfFileDescriptorsKey))
-	assert.Check(t, os.Unsetenv(_systemdSocketActivationEnvExpectedProgramIDKey))
-	assert.Check(t, os.Unsetenv(_systemdSocketActivationEnvListenFDNamesKey))
+	test.Assert(t, os.Unsetenv(_systemdSocketActivationEnvNumberOfFileDescriptorsKey) == nil)
+	test.Assert(t, os.Unsetenv(_systemdSocketActivationEnvExpectedProgramIDKey) == nil)
+	test.Assert(t, os.Unsetenv(_systemdSocketActivationEnvListenFDNamesKey) == nil)
 
 	if configure != nil {
 		configure(t)
@@ -54,15 +56,15 @@ func emulateSystemdProvidingFileDescriptors(t *testing.T, fdsLen int, breakFD bo
 				dir = "/tmp"
 			}
 			f, err := os.CreateTemp(dir, "go-nettest")
-			assert.Assert(t, err)
+			test.Require(t, err == nil)
 			return f
 		}
 
 		for range fdsLen {
 			socket := localPath()
 			sockets = append(sockets, socket.Name())
-			assert.Check(t, socket.Close())
-			assert.Check(t, os.Remove(socket.Name()))
+			test.Assert(t, socket.Close() == nil)
+			test.Assert(t, os.Remove(socket.Name()) == nil)
 		}
 	}
 
@@ -71,16 +73,16 @@ func emulateSystemdProvidingFileDescriptors(t *testing.T, fdsLen int, breakFD bo
 
 	for i, socket := range sockets {
 		l, err := net.Listen("unix", socket)
-		assert.Assert(t, err)
+		test.Require(t, err == nil)
 		t.Cleanup(func() { _ = l.Close() })
 
 		f, err := (l.(*net.UnixListener)).File()
-		assert.Assert(t, err)
+		test.Require(t, err == nil)
 
 		_systemdTestModeFDMap[_systemdSocketActivationListenFDSStart+i] = int(f.Fd())
 
 		if breakFD {
-			assert.Check(t, f.Close())
+			test.Assert(t, f.Close() == nil)
 		} else {
 			t.Cleanup(func() { _ = f.Close() })
 		}
@@ -88,7 +90,7 @@ func emulateSystemdProvidingFileDescriptors(t *testing.T, fdsLen int, breakFD bo
 }
 
 func Test_GetSystemdFileDescriptors(t *testing.T) {
-	for name, test := range map[string]struct {
+	for name, tt := range map[string]struct {
 		env                   map[string]string
 		unsetEnv              bool
 		expectedErrorContains string
@@ -164,41 +166,40 @@ func Test_GetSystemdFileDescriptors(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			emulateSystemdProvidingFileDescriptors(t, test.expectedFilesLen, false)
+			emulateSystemdProvidingFileDescriptors(t, tt.expectedFilesLen, false)
 			setupSystemdEnv(t, func(t *testing.T) {
-				for k, v := range test.env {
+				for k, v := range tt.env {
 					t.Setenv(k, v)
 				}
 			})
 
-			files, provided, err := GetSystemdFileDescriptors(test.unsetEnv)
+			files, provided, err := GetSystemdFileDescriptors(tt.unsetEnv)
 
 			// check if env is unset
-			for k := range test.env {
+			for k := range tt.env {
 				_, found := os.LookupEnv(k)
-				assert.Check(t, found != test.unsetEnv, k)
+				test.Assert(t, found != tt.unsetEnv)
 			}
 
 			// check errors
-			if test.expectedErrorContains != "" {
-				assert.ErrorContains(t, err, test.expectedErrorContains)
+			if tt.expectedErrorContains != "" {
+				test.Assert(t, err != nil && strings.Contains(err.Error(), tt.expectedErrorContains))
 			} else {
-				assert.NilError(t, err)
+				test.Assert(t, err == nil)
 			}
 
-			assert.Check(t, test.expectedNotProvided != provided)
+			test.Assert(t, tt.expectedNotProvided != provided)
 
 			if provided {
-				// checks files
-				assert.Equal(t, test.expectedFilesLen, len(files))
+				test.Assert(t, len(files) == tt.expectedFilesLen)
 				for i, f := range files {
-					assert.Check(t, int(f.Fd()) == _systemdTestModeFDMap[_systemdSocketActivationListenFDSStart+i])
-					assert.Check(t, f.Name() == test.expectedFilesName[i])
+					test.Assert(t, int(f.Fd()) == _systemdTestModeFDMap[_systemdSocketActivationListenFDSStart+i])
+					test.Assert(t, f.Name() == tt.expectedFilesName[i])
 				}
 			}
 
 			for _, file := range files {
-				assert.Check(t, file.Close())
+				test.Assert(t, file.Close() == nil)
 			}
 		})
 	}
@@ -212,8 +213,8 @@ func Test_GetSystemdListeners(t *testing.T) {
 				t.Setenv(_systemdSocketActivationEnvNumberOfFileDescriptorsKey, "foo")
 			})
 			listeners, err := GetSystemdListeners(false)
-			assert.ErrorContains(t, err, "unable to retrieve file descriptors")
-			assert.Check(t, listeners == nil)
+			test.Assert(t, err != nil && strings.Contains(err.Error(), "unable to retrieve file descriptors"))
+			test.Assert(t, listeners == nil)
 		})
 
 		t.Run("unable to get listener from file", func(t *testing.T) {
@@ -223,8 +224,8 @@ func Test_GetSystemdListeners(t *testing.T) {
 				t.Setenv(_systemdSocketActivationEnvNumberOfFileDescriptorsKey, "1")
 			})
 			listeners, err := GetSystemdListeners(false)
-			assert.ErrorContains(t, err, "unable to create listener from file descriptor")
-			assert.Check(t, listeners == nil)
+			test.Assert(t, err != nil && strings.Contains(err.Error(), "unable to create listener from file descriptor"))
+			test.Assert(t, listeners == nil)
 		})
 	})
 
@@ -232,8 +233,8 @@ func Test_GetSystemdListeners(t *testing.T) {
 		t.Run("without provided fds", func(t *testing.T) {
 			setupSystemdEnv(t, nil)
 			listeners, err := GetSystemdListeners(false)
-			assert.Check(t, err)
-			assert.Check(t, listeners == nil)
+			test.Assert(t, err == nil)
+			test.Assert(t, listeners == nil)
 		})
 
 		t.Run("with 0 provided fd", func(t *testing.T) {
@@ -242,9 +243,9 @@ func Test_GetSystemdListeners(t *testing.T) {
 				t.Setenv(_systemdSocketActivationEnvNumberOfFileDescriptorsKey, "0")
 			})
 			listeners, err := GetSystemdListeners(false)
-			assert.Check(t, err)
-			assert.Check(t, listeners != nil)
-			assert.Check(t, len(listeners) == 0)
+			test.Assert(t, err == nil)
+			test.Assert(t, listeners != nil)
+			test.Assert(t, len(listeners) == 0)
 		})
 
 		t.Run("with provided fd", func(t *testing.T) {
@@ -255,8 +256,8 @@ func Test_GetSystemdListeners(t *testing.T) {
 			})
 
 			proxies, err := GetSystemdListeners(false)
-			assert.Check(t, err)
-			assert.Check(t, len(proxies) == 1)
+			test.Assert(t, err == nil)
+			test.Assert(t, len(proxies) == 1)
 
 			var wg sync.WaitGroup
 			wg.Add(1)
@@ -264,24 +265,24 @@ func Test_GetSystemdListeners(t *testing.T) {
 				defer wg.Done()
 
 				c1, errAccept := proxies[0].Accept()
-				assert.Check(t, errAccept)
+				test.Assert(t, errAccept == nil)
 
 				read, errRead := io.ReadAll(c1)
-				assert.Check(t, errRead)
-				assert.Equal(t, string(read), "hello world")
-				assert.Check(t, c1.Close())
+				test.Assert(t, errRead == nil)
+				test.Assert(t, string(read) == "hello world")
+				test.Assert(t, c1.Close() == nil)
 			}()
 
 			c2, err := net.Dial(proxies[0].Addr().Network(), proxies[0].Addr().String())
-			assert.Assert(t, err)
+			test.Require(t, err == nil)
 
 			_, err = c2.Write([]byte("hello world"))
-			assert.Check(t, err)
-			assert.Check(t, c2.Close())
+			test.Assert(t, err == nil)
+			test.Assert(t, c2.Close() == nil)
 
 			wg.Wait()
 
-			assert.Check(t, proxies[0].Close())
+			test.Assert(t, proxies[0].Close() == nil)
 		})
 	})
 }

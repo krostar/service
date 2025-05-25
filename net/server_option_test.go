@@ -4,13 +4,13 @@ import (
 	"testing"
 	"time"
 
-	"gotest.tools/v3/assert"
+	"github.com/krostar/test"
 )
 
 func Test_ServeWithGracefulTimeout(t *testing.T) {
 	var o serveOptions
 	ServeWithShutdownTimeout(time.Second)(&o)
-	assert.Equal(t, o.shutdownTimeout, time.Second)
+	test.Assert(t, o.shutdownTimeout == time.Second)
 }
 
 func Test_ServeWithServeErrorTransformer(t *testing.T) {
@@ -18,8 +18,8 @@ func Test_ServeWithServeErrorTransformer(t *testing.T) {
 	ServeWithServeErrorTransformer(func(err error) error {
 		return err
 	})(&o)
-	assert.Check(t, o.serveErrorTransformer != nil)
-	assert.Check(t, o.shutdownErrorTransformer == nil)
+	test.Assert(t, o.serveErrorTransformer != nil)
+	test.Assert(t, o.shutdownErrorTransformer == nil)
 }
 
 func Test_ServeWithShutdownErrorTransformer(t *testing.T) {
@@ -27,6 +27,6 @@ func Test_ServeWithShutdownErrorTransformer(t *testing.T) {
 	ServeWithShutdownErrorTransformer(func(err error) error {
 		return err
 	})(&o)
-	assert.Check(t, o.serveErrorTransformer == nil)
-	assert.Check(t, o.shutdownErrorTransformer != nil)
+	test.Assert(t, o.serveErrorTransformer == nil)
+	test.Assert(t, o.shutdownErrorTransformer != nil)
 }

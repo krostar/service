@@ -3,11 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/krostar/test"
 	"go.uber.org/goleak"
-	"gotest.tools/v3/assert"
 )
 
 func TestMain(m *testing.M) {
@@ -16,37 +17,37 @@ func TestMain(m *testing.M) {
 
 func Test_RunFunc(t *testing.T) {
 	called := false
-	assert.NilError(t, RunFunc(func(context.Context) error {
+	test.Require(t, RunFunc(func(context.Context) error {
 		called = true
 		return nil
-	}).Run(context.Background()))
-	assert.Equal(t, called, true)
+	}).Run(t.Context()) == nil)
+	test.Assert(t, called)
 }
 
 func Test_Run(t *testing.T) {
 	t.Run("runner ok", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		go func() {
 			time.Sleep(time.Millisecond * 100)
 			cancel()
 		}()
 
-		assert.NilError(t, Run(ctx,
+		test.Assert(t, Run(ctx,
 			RunFunc(func(ctx context.Context) error {
-				assert.Check(t, ctx.Err() == nil)
+				test.Assert(t, ctx.Err() == nil)
 				<-ctx.Done()
 				return nil
 			}),
 			RunFunc(func(ctx context.Context) error {
-				assert.Check(t, ctx.Err() == nil)
+				test.Assert(t, ctx.Err() == nil)
 				<-ctx.Done()
 				return nil
 			}),
-		))
+		) == nil)
 	})
 
 	t.Run("one runner stopping unexpectedly", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 
 		err := Run(ctx,
@@ -58,12 +59,11 @@ func Test_Run(t *testing.T) {
 				return nil
 			}),
 		)
-		assert.ErrorIs(t, err, ErrUnexpectedReturn)
-		assert.ErrorContains(t, err, "runner 2")
+		test.Assert(t, err != nil && errors.Is(err, ErrUnexpectedReturn) && strings.Contains(err.Error(), "runner 2"))
 	})
 
 	t.Run("one runner failing unexpectedly", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 
 		runErr := errors.New("boom")
@@ -77,13 +77,11 @@ func Test_Run(t *testing.T) {
 				return runErr
 			}),
 		)
-		assert.ErrorIs(t, err, ErrUnexpectedReturn)
-		assert.ErrorIs(t, err, runErr)
-		assert.ErrorContains(t, err, "runner 2")
+		test.Assert(t, err != nil && errors.Is(err, ErrUnexpectedReturn) && errors.Is(err, runErr) && strings.Contains(err.Error(), "runner 2"))
 	})
 
 	t.Run("one runner failing after stop", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		go func() {
 			time.Sleep(time.Millisecond * 100)
 			cancel()
@@ -101,12 +99,11 @@ func Test_Run(t *testing.T) {
 				return nil
 			}),
 		)
-		assert.ErrorIs(t, err, runErr)
-		assert.ErrorContains(t, err, "runner 1")
+		test.Assert(t, err != nil && errors.Is(err, runErr) && strings.Contains(err.Error(), "runner 1"))
 	})
 
 	t.Run("multiple runner failing after stop", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		go func() {
 			time.Sleep(time.Millisecond * 100)
 			cancel()
@@ -125,15 +122,13 @@ func Test_Run(t *testing.T) {
 				return runErr2
 			}),
 		)
-		assert.ErrorIs(t, err, runErr1)
-		assert.ErrorIs(t, err, runErr2)
+		test.Assert(t, err != nil && errors.Is(err, runErr1) && errors.Is(err, runErr2))
 	})
 }
 
 func Test_runnerError(t *testing.T) {
-	err := errors.New("boom")
-	rerr := runnerError(0, err)
+	anError := errors.New("boom")
+	err := runnerError(0, anError)
 
-	assert.ErrorIs(t, rerr, err)
-	assert.Error(t, rerr, "(runner 1) boom")
+	test.Assert(t, err != nil && errors.Is(err, anError) && strings.Contains(err.Error(), "(runner 1) boom"))
 }

@@ -27,7 +27,7 @@ type ListenOption func(*listenOptions) error
 // ListenWithContext sets the context provided to net.Listen().
 func ListenWithContext(ctx context.Context) ListenOption {
 	return func(o *listenOptions) error {
-		o.ctx = ctx //nolint:fatcontext // we want to provide that context as an option to Listen
+		o.ctx = ctx
 		return nil
 	}
 }

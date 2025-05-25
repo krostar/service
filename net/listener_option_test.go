@@ -1,86 +1,84 @@
 package netservice
 
 import (
-	"context"
 	"crypto/tls"
+	"strings"
 	"testing"
 	"time"
 
-	"gotest.tools/v3/assert"
+	"github.com/krostar/test"
 )
 
 func Test_ListenWithContext(t *testing.T) {
 	var o listenOptions
-	err := ListenWithContext(context.Background())(&o)
-	assert.NilError(t, err)
-	assert.Check(t, o.ctx != nil)
+	test.Require(t, ListenWithContext(t.Context())(&o) == nil)
+	test.Assert(t, o.ctx != nil)
 }
 
 func Test_ListenWithAddress(t *testing.T) {
 	var o listenOptions
-	err := ListenWithAddress("net", "addr")(&o)
-	assert.NilError(t, err)
-	assert.Equal(t, "net", o.network)
-	assert.Equal(t, "addr", o.address)
+	test.Require(t, ListenWithAddress("net", "addr")(&o) == nil)
+	test.Assert(t, o.network == "net")
+	test.Assert(t, o.address == "addr")
 }
 
 func Test_ListenWithKeepAlive(t *testing.T) {
 	var o listenOptions
-	err := ListenWithKeepAlive(3 * time.Millisecond)(&o)
-	assert.NilError(t, err)
-	assert.Equal(t, 3*time.Millisecond, o.keepAlive)
+	test.Require(t, ListenWithKeepAlive(3*time.Millisecond)(&o) == nil)
+	test.Assert(t, o.keepAlive == 3*time.Millisecond)
 }
 
 func Test_ListenWithoutKeepAlive(t *testing.T) {
 	var o listenOptions
 	o.keepAlive = 10 * time.Second
-	err := ListenWithoutKeepAlive()(&o)
-	assert.NilError(t, err)
-	assert.Equal(t, time.Duration(-1), o.keepAlive)
+	test.Require(t, ListenWithoutKeepAlive()(&o) == nil)
+	test.Assert(t, o.keepAlive == time.Duration(-1))
 }
 
 func Test_ListenWithModernTLSConfig(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		var o listenOptions
-		assert.NilError(t, ListenWithModernTLSConfig("./tls/testdata/cert.crt", "./tls/testdata/cert.key", func(cfg *tls.Config) {
+		test.Assert(t, ListenWithModernTLSConfig("./tls/testdata/cert.crt", "./tls/testdata/cert.key", func(cfg *tls.Config) {
 			cfg.ServerName = "foo"
-		})(&o))
-		assert.Check(t, o.tlsConfig != nil)
-		assert.Check(t, o.tlsConfig.MinVersion == tls.VersionTLS13)
+		})(&o) == nil)
+		test.Assert(t, o.tlsConfig != nil)
+		test.Assert(t, o.tlsConfig.MinVersion == tls.VersionTLS13)
 	})
 
 	t.Run("ko", func(t *testing.T) {
 		var o listenOptions
-		assert.ErrorContains(t, ListenWithModernTLSConfig("./notfound", "./notfound")(&o), "unable to create modern tls config")
+		err := ListenWithModernTLSConfig("./notfound", "./notfound")(&o)
+		test.Assert(t, err != nil && strings.Contains(err.Error(), "unable to create modern tls config"))
 	})
 }
 
 func Test_ListenWithIntermediateTLSConfig(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		var o listenOptions
-		assert.NilError(t, ListenWithIntermediateTLSConfig("./tls/testdata/cert.crt", "./tls/testdata/cert.key", func(cfg *tls.Config) {
+		test.Assert(t, ListenWithIntermediateTLSConfig("./tls/testdata/cert.crt", "./tls/testdata/cert.key", func(cfg *tls.Config) {
 			cfg.ServerName = "foo"
-		})(&o))
-		assert.Check(t, o.tlsConfig != nil)
-		assert.Check(t, o.tlsConfig.MinVersion == tls.VersionTLS12)
+		})(&o) == nil)
+		test.Assert(t, o.tlsConfig != nil)
+		test.Assert(t, o.tlsConfig.MinVersion == tls.VersionTLS12)
 	})
 
 	t.Run("ko", func(t *testing.T) {
 		var o listenOptions
-		assert.ErrorContains(t, ListenWithIntermediateTLSConfig("./notfound", "./notfound")(&o), "unable to create intermediate tls config")
+		err := ListenWithIntermediateTLSConfig("./notfound", "./notfound")(&o)
+		test.Assert(t, err != nil && strings.Contains(err.Error(), "unable to create intermediate tls config"))
 	})
 }
 
 func Test_ListenWithTLSConfig(t *testing.T) {
 	var o listenOptions
-	assert.NilError(t, ListenWithTLSConfig(&tls.Config{ServerName: "foo", MinVersion: tls.VersionTLS12})(&o))
-	assert.Check(t, o.tlsConfig != nil, "tls config should not be nil")
-	assert.Check(t, o.tlsConfig.ServerName == "foo")
+	test.Assert(t, ListenWithTLSConfig(&tls.Config{ServerName: "foo", MinVersion: tls.VersionTLS12})(&o) == nil)
+	test.Assert(t, o.tlsConfig != nil, "tls config should not be nil")
+	test.Assert(t, o.tlsConfig.ServerName == "foo")
 }
 
 func Test_ListenWithSystemdProvidedFileDescriptors(t *testing.T) {
 	var o listenOptions
 	err := ListenWithSystemdProvidedFileDescriptors()(&o)
-	assert.NilError(t, err)
-	assert.Check(t, o.useSystemdProvidedFileDescriptor)
+	test.Assert(t, err == nil)
+	test.Assert(t, o.useSystemdProvidedFileDescriptor)
 }

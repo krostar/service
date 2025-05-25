@@ -2,4 +2,5 @@
 /result
 
 # nixago: ignore-linked-files
+/.justfile
 /.editorconfig

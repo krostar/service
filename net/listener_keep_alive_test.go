@@ -5,29 +5,26 @@ import (
 	"testing"
 	"time"
 
-	"gotest.tools/v3/assert"
+	"github.com/krostar/test"
 )
 
 func Test_NewListener_keepalive(t *testing.T) {
 	t.Run("without keepalive", func(t *testing.T) {
 		l, err := NewListener(ListenWithAddress("tcp", "localhost:0"), ListenWithoutKeepAlive())
-		assert.NilError(t, err)
+		test.Require(t, err == nil && l != nil)
 
 		activated, _ := tcpGetKeepAliveSockOPT(t, l)
-		assert.Check(t, !activated, "keepalive should not be set with normal listener")
-
-		assert.NilError(t, l.Close())
+		test.Assert(t, !activated, "keepalive should not be set with normal listener")
+		test.Assert(t, l.Close() == nil)
 	})
 
 	t.Run("with keepalive", func(t *testing.T) {
 		l, err := NewListener(ListenWithAddress("tcp", "localhost:0"), ListenWithKeepAlive(17*time.Second))
-		assert.NilError(t, err)
+		test.Require(t, err == nil && l != nil)
 
 		activated, period := tcpGetKeepAliveSockOPT(t, l)
-		assert.Check(t, activated, "keepalive should have been set")
-		assert.Equal(t, 17, period)
-
-		assert.NilError(t, l.Close())
+		test.Assert(t, activated && period == 17, "keepalive should have been set")
+		test.Assert(t, l.Close() == nil)
 	})
 }
 
@@ -35,12 +32,13 @@ func tcpGetKeepAliveSockOPT(t *testing.T, l net.Listener) (bool, int) {
 	t.Helper()
 	go func() {
 		conn, err := net.Dial("tcp", l.Addr().String())
-		assert.NilError(t, err)
-		assert.NilError(t, conn.Close())
+		if test.Assert(t, err == nil) {
+			test.Assert(t, conn.Close() == nil)
+		}
 	}()
 
 	conn, err := l.Accept()
-	assert.NilError(t, err)
+	test.Require(t, err == nil && conn != nil)
 
 	var (
 		activated bool
@@ -48,12 +46,12 @@ func tcpGetKeepAliveSockOPT(t *testing.T, l net.Listener) (bool, int) {
 	)
 
 	r, err := conn.(*net.TCPConn).SyscallConn()
-	assert.NilError(t, err)
-	assert.NilError(t, r.Control(func(fd uintptr) {
+	test.Require(t, err == nil && r != nil)
+	test.Assert(t, r.Control(func(fd uintptr) {
 		activated, secs = getKeepAliveConfig(t, int(fd))
-	}))
+	}) == nil)
 
-	assert.NilError(t, conn.Close())
+	test.Assert(t, conn.Close() == nil)
 
 	return activated, secs
 }

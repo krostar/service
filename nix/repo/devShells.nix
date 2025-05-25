@@ -1,1 +1,1 @@
-{deps, ...}: deps.harmony.result.devShells.harmony.go
+{deps, ...}: deps.synergy.result.devShells.harmony.go

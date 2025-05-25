@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/krostar/test"
 	"golang.org/x/sync/errgroup"
-	"gotest.tools/v3/assert"
 
 	netservice "github.com/krostar/service/net"
 )
@@ -20,30 +20,27 @@ func Test_NewServer(t *testing.T) {
 		srv, err := NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 			called = true
 		}))
-		assert.Check(t, err)
-		assert.Check(t, srv.Handler != nil)
-		assert.Check(t, srv.ReadTimeout > 0)
-		assert.Check(t, srv.MaxHeaderBytes > 1024)
+		test.Assert(t, err == nil)
+		test.Assert(t, srv.Handler != nil)
+		test.Assert(t, srv.ReadTimeout > 0)
+		test.Assert(t, srv.MaxHeaderBytes > 1024)
 
 		srv.Handler.ServeHTTP(nil, nil)
-		assert.Check(t, called)
+		test.Assert(t, called)
 	})
 
 	t.Run("ko", func(t *testing.T) {
 		anError := errors.New("boom")
-		_, err := NewServer(nil, func(*http.Server) error {
-			return anError
-		})
-		assert.Check(t, errors.Is(err, anError))
-		assert.ErrorContains(t, err, "unable to apply server option")
+		_, err := NewServer(nil, func(*http.Server) error { return anError })
+		test.Assert(t, err != nil && errors.Is(err, anError) && strings.Contains(err.Error(), "unable to apply server option"))
 	})
 }
 
 func Test_Serve(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	l, err := netservice.NewListener(netservice.ListenWithAddress("tcp", "localhost:0"))
-	assert.NilError(t, err)
+	test.Require(t, err == nil && l != nil)
 	addr := l.Addr().String()
 
 	var wg errgroup.Group
@@ -56,16 +53,16 @@ func Test_Serve(t *testing.T) {
 
 	client := &http.Client{Timeout: time.Millisecond * 500}
 	resp, err := client.Get("http://" + addr)
-	assert.NilError(t, err)
-	assert.Equal(t, resp.StatusCode, http.StatusTeapot)
+	test.Require(t, err == nil && resp != nil)
+	test.Assert(t, resp.StatusCode == http.StatusTeapot)
 
 	cancel()
-	assert.NilError(t, wg.Wait())
+	test.Assert(t, wg.Wait() == nil)
 }
 
 func Test_ListenAndServe(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 
 		var wg errgroup.Group
 		wg.Go(func() error {
@@ -80,7 +77,7 @@ func Test_ListenAndServe(t *testing.T) {
 		time.Sleep(time.Millisecond * 100)
 		cancel()
 
-		assert.NilError(t, wg.Wait())
+		test.Assert(t, wg.Wait() == nil)
 	})
 
 	t.Run("ko", func(t *testing.T) {
@@ -98,10 +95,10 @@ func Test_ListenAndServe(t *testing.T) {
 				_ = ListenAndServe(
 					http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) { rw.WriteHeader(http.StatusTeapot) }),
 					42,
-				)(context.Background())
+				)(t.Context())
 			}()
 
-			assert.Check(t, strings.Contains(<-cpanic, "unknown option type"))
+			test.Assert(t, strings.Contains(<-cpanic, "unknown option type"))
 		})
 
 		t.Run("unable to create server", func(t *testing.T) {
@@ -110,20 +107,20 @@ func Test_ListenAndServe(t *testing.T) {
 			err := ListenAndServe(
 				http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) { rw.WriteHeader(http.StatusTeapot) }),
 				ServerOption(func(*http.Server) error { return anError }),
-			)(context.Background())
+			)(t.Context())
 
-			assert.Check(t, errors.Is(err, anError))
+			test.Assert(t, err != nil && errors.Is(err, anError))
 		})
 
 		t.Run("unable to create listener", func(t *testing.T) {
 			l, err := netservice.NewListener(netservice.ListenWithAddress("tcp", "localhost:0"))
-			assert.NilError(t, err)
+			test.Require(t, err == nil && l != nil)
 
 			err = ListenAndServe(
 				http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) { rw.WriteHeader(http.StatusTeapot) }),
 				netservice.ListenWithAddress(l.Addr().Network(), l.Addr().String()),
-			)(context.Background())
-			assert.ErrorContains(t, err, "unable to listen")
+			)(t.Context())
+			test.Assert(t, err != nil && strings.Contains(err.Error(), "unable to listen"))
 		})
 	})
 }

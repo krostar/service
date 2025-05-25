@@ -1,1 +1,1 @@
-{deps, ...}: deps.harmony.result.packages.harmony.treefmt
+{deps, ...}: deps.synergy.result.packages.harmony.treefmt

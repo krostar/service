@@ -41,7 +41,7 @@ func GetSystemdFileDescriptors(unsetEnvironment bool) ([]*os.File, bool, error) 
 
 	rawPID, pidEnvExists := os.LookupEnv(_systemdSocketActivationEnvExpectedProgramIDKey)
 	rawFDsLen, fdsLenEnvExists := os.LookupEnv(_systemdSocketActivationEnvNumberOfFileDescriptorsKey)
-	if !(pidEnvExists && fdsLenEnvExists) {
+	if !pidEnvExists || !fdsLenEnvExists {
 		return nil, false, nil
 	}
 
@@ -75,7 +75,7 @@ func GetSystemdFileDescriptors(unsetEnvironment bool) ([]*os.File, bool, error) 
 		}
 
 		for i := range fdsLen {
-			if len(fdsNames[i]) == 0 {
+			if fdsNames[i] == "" {
 				fdsNames[i] = "LISTEN_FD_" + strconv.Itoa(i+_systemdSocketActivationListenFDSStart)
 			}
 		}
