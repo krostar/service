@@ -7,7 +7,6 @@ toolchain go1.24.3
 require (
 	github.com/krostar/test v1.0.0
 	go.uber.org/goleak v1.3.0
-	go.uber.org/multierr v1.11.0
 	golang.org/x/sync v0.14.0
 )
 

@@ -1,14 +1,13 @@
 package netservice
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"strconv"
 	"strings"
 	"syscall"
-
-	"go.uber.org/multierr"
 )
 
 const ( // see https://www.freedesktop.org/software/systemd/man/latest/sd_listen_fds.html
@@ -159,7 +158,7 @@ func GetSystemdListeners(unsetEnvironment bool) ([]net.Listener, error) {
 				errs = append(errs, l.Close())
 			}
 		}
-		return multierr.Combine(errs...)
+		return errors.Join(errs...)
 	}
 
 	for i, fd := range fds {
