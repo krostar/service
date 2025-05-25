@@ -1,3 +1,21 @@
+// Package httpnetservice provides HTTP-specific utilities for the service library.
+//
+// This package extends the core netservice package with HTTP server management,
+// providing simplified APIs for creating and managing HTTP services with proper
+// lifecycle management and graceful shutdown capabilities.
+//
+// Key Features:
+//   - Simplified HTTP server creation with sensible defaults
+//   - Automatic error transformation for expected HTTP errors
+//   - Integration with the service.Runner interface
+//   - Support for all netservice configuration options
+//   - Graceful shutdown with configurable timeouts
+//   - TLS support through netservice integration
+//
+// Error Handling: this package automatically handles common HTTP server errors:
+//   - http.ErrServerClosed is ignored during graceful shutdown
+//   - other errors are propagated as service failures
+//   - custom error transformation can be applied via ServeOptions
 package httpnetservice
 
 import (

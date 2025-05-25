@@ -20,15 +20,33 @@ const ( // see https://www.freedesktop.org/software/systemd/man/latest/sd_listen
 
 var _systemdTestModeFDMap map[int]int //nolint:gochecknoglobals // we need this variable for testing purposes as there is no way to provide file descriptors that exist in our tests otherwise
 
-/*
-GetSystemdFileDescriptors retrieves the file descriptors passed by the init system as part of the socket-based activation logic.
-It should behave as described [here](https://www.freedesktop.org/software/systemd/man/latest/sd_listen_fds.html).
-
-If the unsetEnvironment parameter is true, the first call to GetSystemdFileDescriptors will unset the
-$LISTEN_FDS, $LISTEN_PID, and $LISTEN_FDNAMES environment variables before returning (regardless of whether
-the function call itself succeeded or not). Further calls will then fail, but the variables are no longer
-inherited by child processes.
-*/
+// GetSystemdFileDescriptors retrieves file descriptors passed by systemd for socket activation.
+//
+// This function implements the systemd socket activation protocol as described in:
+// https://www.freedesktop.org/software/systemd/man/latest/sd_listen_fds.html
+//
+// It reads environment variables set by systemd and returns the file descriptors
+// that were pre-bound and passed to this process for socket activation.
+//
+// If unsetEnvironment is true, the systemd environment variables will be cleared after reading them.
+// This prevents child processes from inheriting these variables and is recommended for
+// production use to maintain proper systemd semantics.
+//
+// Environment variables read:
+//   - LISTEN_PID: must match current process PID
+//   - LISTEN_FDS: number of file descriptors being passed
+//   - LISTEN_FDNAMES: optional colon-separated names for the descriptors
+//
+// If systemd socket activation is not active (environment variables not set):
+// returns (nil, false, nil) - no error, but no file descriptors available
+//
+// If systemd socket activation is detected but invalid:
+// returns (nil, true, error) - indicates systemd activation was attempted but failed
+//
+// If successful:
+//   - returns ([]*os.File, true, nil) - file descriptors ready for use
+//   - sets CloseOnExec on all file descriptors to prevent inheritance
+//   - optionally unsets environment variables if unsetEnvironment is true
 func GetSystemdFileDescriptors(unsetEnvironment bool) ([]*os.File, bool, error) {
 	if unsetEnvironment {
 		//nolint:errcheck // regardless of result we want to try to unset those env variables
@@ -94,13 +112,31 @@ func GetSystemdFileDescriptors(unsetEnvironment bool) ([]*os.File, bool, error) 
 	return fds, true, nil
 }
 
-/*
-GetSystemdListeners returns net.Listener for each matching socket fd passed to this process.
-The order of the file descriptors is preserved in the returned slice.
-See:
-- https://0pointer.de/blog/projects/socket-activation.html
-- https://0pointer.net/blog/walkthrough-for-portable-services-in-go.html
-*/
+// GetSystemdListeners converts systemd file descriptors to net.Listener instances.
+//
+// This is the high-level function for systemd socket activation that handles the
+// complete process of retrieving file descriptors from systemd and converting
+// them to usable net.Listener instances.
+//
+// Functionalities:
+//   - retrieves file descriptors using GetSystemdFileDescriptors
+//   - converts each file descriptor to a net.Listener using net.FileListener
+//   - maintains the order of file descriptors as provided by systemd
+//   - handles cleanup of file descriptors after listener creation
+//   - provides proper error handling with resource cleanup
+//
+// If unsetEnvironment is true, clears systemd environment variables after use.
+// The order of listeners matches the order specified in systemd socket configuration:
+//
+//	[Socket]
+//	ListenStream=8080    # listeners[0]
+//	ListenStream=8443    # listeners[1]
+//	ListenDatagram=9090  # listeners[2]
+//
+// References:
+//   - https://0pointer.de/blog/projects/socket-activation.html
+//   - https://0pointer.net/blog/walkthrough-for-portable-services-in-go.html
+//   - https://www.freedesktop.org/software/systemd/man/systemd.socket.html
 func GetSystemdListeners(unsetEnvironment bool) ([]net.Listener, error) {
 	fds, provided, err := GetSystemdFileDescriptors(unsetEnvironment)
 	if err != nil {

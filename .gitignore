@@ -2,5 +2,6 @@
 /result
 
 # nixago: ignore-linked-files
-/.justfile
 /.editorconfig
+/.idea/watcherTasks.xml
+/.justfile
